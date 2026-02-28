@@ -382,12 +382,38 @@ main{padding:32px 36px;max-width:1440px;margin:0 auto;}
 
 <!-- ══ QR CODES ══ -->
 <div id="page-qrcodes" class="page">
-  <div class="sec-hdr"><div class="sec-ttl">QR Codes des invités</div><div class="sec-line"></div></div>
-  <div class="toolbar" style="margin-bottom:20px;">
-    <button class="btn btn-ol" onclick="openCartonModal()">💌 Aperçu & PDF individuel</button>
-    <button class="btn btn-green" id="btn-dl-all" onclick="downloadAllPDF()">⬇ Télécharger tous les PDFs</button>
-    <span style="font-size:11px;color:var(--mid);margin-left:4px;" id="dl-status"></span>
+  <div class="sec-hdr"><div class="sec-ttl">QR Codes & Cartons d'invitation</div><div class="sec-line"></div></div>
+
+  <!-- Barre de contrôle téléchargement -->
+  <div style="background:var(--dark2);border:1px solid var(--border);border-radius:4px;padding:18px 20px;margin-bottom:20px;">
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+      <div style="font-family:'Playfair Display',serif;font-size:16px;font-style:italic;color:var(--gold-light);">Télécharger les cartons</div>
+      <div style="flex:1;height:1px;background:var(--border);"></div>
+      <span id="dl-status" style="font-size:11px;color:var(--green-l);font-weight:500;"></span>
+    </div>
+    <!-- Filtre groupe -->
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px;">
+      <span style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mid);">Groupe :</span>
+      <div id="dl-chips" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
+    </div>
+    <!-- Barre progression -->
+    <div id="dl-prog-wrap" style="display:none;margin-bottom:12px;">
+      <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+        <span style="font-size:11px;color:var(--mid);" id="dl-prog-lbl">0 / 0</span>
+        <span style="font-size:11px;color:var(--gold);" id="dl-prog-pct">0%</span>
+      </div>
+      <div class="prog-out"><div class="prog-in" id="dl-prog-bar" style="width:0%"></div></div>
+    </div>
+    <!-- Boutons -->
+    <div style="display:flex;gap:9px;flex-wrap:wrap;align-items:center;">
+      <button class="btn btn-ol" onclick="openCartonModal()">💌 Aperçu 1 carton</button>
+      <button class="btn btn-green" id="btn-dl-group" onclick="downloadGroupPDF()">⬇ Télécharger le groupe sélectionné</button>
+      <button class="btn btn-gold" id="btn-dl-all" onclick="downloadAllPDF()">⬇ Télécharger TOUS (163)</button>
+      <button class="btn" id="btn-dl-stop" onclick="stopDownload()" style="display:none;background:var(--red);color:#fff;">⏹ Arrêter</button>
+    </div>
+    <p style="font-size:10px;color:var(--mid);margin-top:10px;">📁 Chaque PDF se télécharge individuellement avec le nom de l'invité — prêt à envoyer par WhatsApp / email</p>
   </div>
+
   <div class="qr-grid" id="qr-list"></div>
 </div>
 
@@ -839,28 +865,79 @@ async function downloadOnePDF(){
   btn.textContent='⬇ Télécharger PDF'; btn.disabled=false;
 }
 
-/* ── TÉLÉCHARGER TOUS LES PDFs (un par invité) ── */
-async function downloadAllPDF(){
-  const btn=document.getElementById('btn-dl-all');
-  const status=document.getElementById('dl-status');
-  btn.disabled=true;
-  const {jsPDF}=window.jspdf;
-  const total=GUESTS.length;
+/* ── CHIPS DE GROUPE POUR TÉLÉCHARGEMENT ── */
+let dlGroup = 'Tous';
+function buildDLChips(){
+  const groups = ['Tous', ...new Set(GUESTS.map(g => g.g))];
+  document.getElementById('dl-chips').innerHTML = groups.map(grp =>
+    `<div class="chip ${grp===dlGroup?'active':''}" onclick="dlGroup='${grp}';buildDLChips();">${grp}</div>`
+  ).join('');
+}
 
-  // On génère un PDF multi-pages (1 carton par page) → 1 seul fichier
-  const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a5'});
-  const W=180, H=100, xOff=15, yOff=24;
+/* ── MOTEUR DE TÉLÉCHARGEMENT INDIVIDUEL ── */
+let dlStopped = false;
 
-  for(let i=0;i<total;i++){
-    if(i>0) doc.addPage();
-    status.textContent=`Génération ${i+1}/${total}…`;
-    await drawCarton(doc,GUESTS[i],i,xOff,yOff,W,H);
-    // Laisser respirer le thread UI
-    await new Promise(r=>setTimeout(r,0));
+function setDLUI(running){
+  document.getElementById('btn-dl-group').disabled = running;
+  document.getElementById('btn-dl-all').disabled = running;
+  document.getElementById('btn-dl-stop').style.display = running ? 'inline-block' : 'none';
+  document.getElementById('dl-prog-wrap').style.display = running ? 'block' : 'none';
+  if(!running){ document.getElementById('dl-prog-bar').style.width='0%'; }
+}
+
+function stopDownload(){ dlStopped = true; }
+
+async function runDownloads(list){
+  dlStopped = false;
+  setDLUI(true);
+  const status   = document.getElementById('dl-status');
+  const lbl      = document.getElementById('dl-prog-lbl');
+  const pct      = document.getElementById('dl-prog-pct');
+  const bar      = document.getElementById('dl-prog-bar');
+  const {jsPDF}  = window.jspdf;
+  const total    = list.length;
+
+  for(let k = 0; k < total; k++){
+    if(dlStopped){ status.textContent = '⏹ Arrêté à '+k+'/'+total; break; }
+
+    const {g, i} = list[k];
+    status.textContent = `⏳ ${k+1}/${total} — ${g.n}`;
+    lbl.textContent    = `${k+1} / ${total}`;
+    const p = Math.round((k+1)/total*100);
+    pct.textContent    = p+'%';
+    bar.style.width    = p+'%';
+
+    // Génère le PDF de cet invité
+    const doc = new jsPDF({orientation:'landscape', unit:'mm', format:'a5'});
+    await drawCarton(doc, g, i, 15, 24, 180, 100);
+    const fname = g.n.normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+                      .replace(/[^a-zA-Z0-9 \-]/g,'_').replace(/\s+/g,'_');
+    doc.save(`carton_${String(k+1).padStart(3,'0')}_${fname}.pdf`);
+
+    // Pause entre chaque téléchargement pour éviter que le navigateur bloque
+    await new Promise(r => setTimeout(r, 600));
   }
-  status.textContent='✓ Terminé !';
-  doc.save('cartons_invitation_mariage_yves_TOUS.pdf');
-  setTimeout(()=>{status.textContent='';btn.disabled=false;},3000);
+
+  if(!dlStopped) status.textContent = `✅ ${total} PDFs téléchargés !`;
+  setTimeout(()=>{ status.textContent=''; setDLUI(false); }, 4000);
+}
+
+/* ── TÉLÉCHARGER LE GROUPE SÉLECTIONNÉ ── */
+async function downloadGroupPDF(){
+  const list = GUESTS
+    .map((g,i)=>({g,i}))
+    .filter(({g}) => dlGroup==='Tous' || g.g===dlGroup);
+  if(!list.length){ alert('Aucun invité dans ce groupe.'); return; }
+  const label = dlGroup==='Tous' ? 'tous les 163 invités' : `le groupe "${dlGroup}" (${list.length})`;
+  if(!confirm(`Télécharger ${list.length} PDF pour ${label} ?\n\nIls arriveront un par un dans votre dossier Téléchargements.`)) return;
+  await runDownloads(list);
+}
+
+/* ── TÉLÉCHARGER TOUS (raccourci) ── */
+async function downloadAllPDF(){
+  const list = GUESTS.map((g,i)=>({g,i}));
+  if(!confirm(`Télécharger 163 PDFs individuels ?\n\nIls arriveront un par un dans votre dossier Téléchargements.\nVous pouvez arrêter à tout moment.`)) return;
+  await runDownloads(list);
 }
 
 
@@ -936,7 +1013,7 @@ function manualCheck(){
 }
 
 /* ═══════════════════════════ INIT ═══════════════════════════ */
-buildChips(); renderList(); updateStats();
+buildChips(); renderList(); updateStats(); buildDLChips();
 </script>
 </body>
 </html>
