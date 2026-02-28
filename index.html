@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Mariage Yves — Gestion des Invités</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400;1,600&family=Jost:wght@300;400;500&display=swap');
 
@@ -383,10 +384,9 @@ main{padding:32px 36px;max-width:1440px;margin:0 auto;}
 <div id="page-qrcodes" class="page">
   <div class="sec-hdr"><div class="sec-ttl">QR Codes des invités</div><div class="sec-line"></div></div>
   <div class="toolbar" style="margin-bottom:20px;">
-    <button class="btn btn-gold" onclick="window.print()">🖨 Imprimer la fiche QR</button>
-    <button class="btn btn-ol" onclick="openCartonModal()">💌 Aperçu carton invitation</button>
-    <button class="btn btn-green" onclick="printAllCartons()">🖨 Imprimer tous les cartons</button>
-    <span style="font-size:11px;color:var(--mid);margin-left:4px;">QR codes encodés — fonctionnent sans internet</span>
+    <button class="btn btn-ol" onclick="openCartonModal()">💌 Aperçu & PDF individuel</button>
+    <button class="btn btn-green" id="btn-dl-all" onclick="downloadAllPDF()">⬇ Télécharger tous les PDFs</button>
+    <span style="font-size:11px;color:var(--mid);margin-left:4px;" id="dl-status"></span>
   </div>
   <div class="qr-grid" id="qr-list"></div>
 </div>
@@ -432,7 +432,7 @@ main{padding:32px 36px;max-width:1440px;margin:0 auto;}
     <div id="modal-carton-wrap"></div>
     <div class="modal-actions">
       <button class="btn btn-ol" onclick="closeModal()">Fermer</button>
-      <button class="btn btn-gold" onclick="printOneCarton()">🖨 Imprimer ce carton</button>
+      <button class="btn btn-gold" onclick="downloadOnePDF()">⬇ Télécharger PDF</button>
     </div>
   </div>
 </div>
@@ -744,131 +744,125 @@ function renderModalCarton(){
   },50);
 }
 
-/* ═══════════════════════════ PRINT ONE CARTON ═══════════════════════════ */
-function printOneCarton(){
+/* ═══════════════════════════ PDF GENERATION ═══════════════════════════ */
+
+// Génère le QR code en base64 data URL
+function makeQRDataURL(text, size){
+  return new Promise(resolve=>{
+    const div=document.createElement('div');
+    div.style.cssText='position:fixed;left:-9999px;top:-9999px;background:white;';
+    document.body.appendChild(div);
+    try{
+      new QRCode(div,{text,width:size,height:size,colorDark:'#1A1510',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M});
+    }catch(e){document.body.removeChild(div);resolve(null);return;}
+    setTimeout(()=>{
+      const img=div.querySelector('img')||div.querySelector('canvas');
+      let url=null;
+      if(img && img.tagName==='IMG') url=img.src;
+      else if(img && img.tagName==='CANVAS') url=img.toDataURL('image/png');
+      document.body.removeChild(div);
+      resolve(url);
+    },120);
+  });
+}
+
+// Dessine un carton dans un jsPDF doc
+async function drawCarton(doc, g, idx, xOff, yOff, W, H){
+  const {jsPDF}=window.jspdf;
+  // Fond sombre
+  doc.setFillColor(26,18,6);
+  doc.roundedRect(xOff,yOff,W,H,2,2,'F');
+  // Bordure or
+  doc.setDrawColor(201,168,76); doc.setLineWidth(0.5);
+  doc.roundedRect(xOff,yOff,W,H,2,2,'S');
+  // Bande dorée bas
+  doc.setFillColor(201,168,76);
+  doc.rect(xOff,yOff+H-1.5,W,1.5,'F');
+  // Coins décoratifs
+  const cs=6; doc.setDrawColor(232,209,151); doc.setLineWidth(0.4);
+  doc.line(xOff+3,yOff+3+cs,xOff+3,yOff+3); doc.line(xOff+3,yOff+3,xOff+3+cs,yOff+3);
+  doc.line(xOff+W-3-cs,yOff+3,xOff+W-3,yOff+3); doc.line(xOff+W-3,yOff+3,xOff+W-3,yOff+3+cs);
+  doc.line(xOff+3,yOff+H-3-cs,xOff+3,yOff+H-3); doc.line(xOff+3,yOff+H-3,xOff+3+cs,yOff+H-3);
+  // Séparateur vertical
+  const sepX=xOff+W-38; doc.setDrawColor(201,168,76); doc.setLineWidth(0.2); doc.setLineDashPattern([0.5,0.5],0);
+  doc.line(sepX,yOff+6,sepX,yOff+H-6); doc.setLineDashPattern([],0);
+  // Texte gauche
+  const lx=xOff+6, ly=yOff+12;
+  doc.setTextColor(201,168,76); doc.setFontSize(5); doc.setFont('helvetica','normal');
+  doc.text('CEREMONIE DE MARIAGE',lx,ly);
+  doc.setTextColor(201,168,76); doc.setFontSize(11); doc.setFont('helvetica','bold');
+  doc.text('Yves & Epouse',lx,ly+6);
+  doc.setTextColor(232,209,151); doc.setFontSize(6); doc.setFont('helvetica','italic');
+  doc.text('Vous etes cordialement invite(e)',lx,ly+11);
+  // Ligne séparatrice
+  doc.setDrawColor(201,168,76); doc.setLineWidth(0.3);
+  doc.line(lx,ly+14,lx+20,ly+14);
+  // Nom invité
+  doc.setTextColor(120,90,50); doc.setFontSize(5); doc.setFont('helvetica','normal');
+  doc.text('NOM DE L\'INVITE(E)',lx,ly+19);
+  const nameClean=g.n.replace(/[^\w\s\-\.\'àáâãäåçèéêëìíîïñòóôõöùúûüýÿÀÁÂÃÄÅÇÈÉÊËÌÍÎÏÑÒÓÔÕÖÙÚÛÜÝ&]/g,'');
+  doc.setTextColor(250,247,240); doc.setFontSize(9); doc.setFont('helvetica','bold');
+  // Tronque si trop long
+  const maxW=sepX-xOff-12;
+  let name=nameClean;
+  while(doc.getTextWidth(name)>maxW && name.length>4) name=name.slice(0,-1);
+  if(name!==nameClean) name=name.trim()+'…';
+  doc.text(name,lx,ly+25);
+  if(g.p){
+    doc.setTextColor(107,90,58); doc.setFontSize(6); doc.setFont('helvetica','normal');
+    doc.text('Tel: '+g.p,lx,ly+31);
+  }
+  // QR code
+  const qrUrl=await makeQRDataURL(`NOM:${g.n}\nTEL:${g.p||''}\nID:${idx}`,80);
+  if(qrUrl){
+    const qrX=sepX+4, qrY=yOff+8, qrS=26;
+    doc.setFillColor(255,255,255); doc.roundedRect(qrX,qrY,qrS,qrS,1,1,'F');
+    doc.addImage(qrUrl,'PNG',qrX+1,qrY+1,qrS-2,qrS-2);
+    doc.setTextColor(201,168,76); doc.setFontSize(4.5); doc.setFont('helvetica','normal');
+    doc.text('VOTRE ACCES',qrX+(qrS/2),qrY+qrS+4,{align:'center'});
+  }
+}
+
+/* ── TÉLÉCHARGER UN PDF INDIVIDUEL ── */
+async function downloadOnePDF(){
   const i=parseInt(document.getElementById('modal-select').value);
   if(isNaN(i)){alert('Sélectionnez un invité');return;}
   const g=GUESTS[i];
-  const win=window.open('','_blank','width=800,height=600');
-  const qrData=`NOM:${g.n}\nTEL:${g.p||''}\nID:${i}`;
-
-  win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400;1,600&family=Jost:wght@300;400;500&display=swap');
-    body{margin:0;padding:20mm;background:#fff;display:flex;justify-content:center;align-items:center;min-height:100vh;}
-    .carton{width:148mm;height:100mm;background:linear-gradient(135deg,#1A1206,#2C1D08,#1A1206);border:2px solid #C9A84C;border-radius:4px;display:flex;align-items:stretch;overflow:hidden;position:relative;font-family:'Playfair Display',serif;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
-    .carton::before,.carton::after{content:'';position:absolute;width:40px;height:40px;border-color:#E8D197;border-style:solid;opacity:.35;}
-    .carton::before{top:7px;left:7px;border-width:2px 0 0 2px;}
-    .carton::after{bottom:7px;right:7px;border-width:0 2px 2px 0;}
-    .left{flex:1;padding:20px 16px;display:flex;flex-direction:column;justify-content:center;border-right:1px solid rgba(201,168,76,.2);}
-    .tag{font-size:7px;letter-spacing:3px;text-transform:uppercase;color:#C9A84C;opacity:.7;margin-bottom:6px;font-family:'Jost',sans-serif;}
-    .evt{font-size:18px;font-weight:700;color:#C9A84C;line-height:1.1;margin-bottom:2px;}
-    .sub{font-size:10px;font-style:italic;color:#E8D197;opacity:.6;margin-bottom:12px;font-family:'Jost',sans-serif;}
-    .div{width:36px;height:1px;background:#C9A84C;opacity:.4;margin-bottom:12px;}
-    .lbl{font-size:7px;letter-spacing:2px;text-transform:uppercase;color:#6B5A3A;font-family:'Jost',sans-serif;margin-bottom:3px;}
-    .iname{font-size:15px;font-weight:600;color:#FAF7F0;line-height:1.2;}
-    .iphone{font-size:9px;color:#6B5A3A;margin-top:3px;font-family:'Jost',sans-serif;}
-    .right{width:110px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:12px;}
-    .qrbox{background:#fff;border-radius:3px;padding:5px;width:80px;height:80px;display:flex;align-items:center;justify-content:center;}
-    .qrbox canvas,.qrbox img{width:70px!important;height:70px!important;}
-    .qlbl{font-size:7px;letter-spacing:1.5px;text-transform:uppercase;color:#C9A84C;opacity:.6;text-align:center;font-family:'Jost',sans-serif;}
-    .strip{position:absolute;bottom:0;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent,#C9A84C,#E8D197,#C9A84C,transparent);opacity:.5;}
-    @media print{body{padding:10mm;}@page{size:A5 landscape;margin:10mm;}}
-  </style></head><body>
-  <div class="carton">
-    <div class="left">
-      <div class="tag">Cérémonie de mariage</div>
-      <div class="evt">Yves &amp; Épouse</div>
-      <div class="sub">Vous êtes cordialement invité(e)</div>
-      <div class="div"></div>
-      <div class="lbl">Nom de l'invité(e)</div>
-      <div class="iname">${g.n}</div>
-      ${g.p?`<div class="iphone">📞 ${g.p}</div>`:''}
-    </div>
-    <div class="right">
-      <div class="qrbox" id="qr"></div>
-      <div class="qlbl">Votre accès</div>
-    </div>
-    <div class="strip"></div>
-  </div>
-  <script>
-    window.onload=function(){
-      new QRCode(document.getElementById('qr'),{text:'${qrData.replace(/\n/g,'\\n')}',width:70,height:70,colorDark:'#1A1510',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M});
-      setTimeout(()=>window.print(),800);
-    };
-  <\/script></body></html>`);
-  win.document.close();
+  const btn=document.querySelector('.modal-actions .btn-gold');
+  btn.textContent='⏳ Génération…'; btn.disabled=true;
+  const {jsPDF}=window.jspdf;
+  // A5 paysage = 210 x 148 mm
+  const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a5'});
+  await drawCarton(doc,g,i,15,24,180,100);
+  const fname=g.n.replace(/[^a-zA-Z0-9\- ]/g,'_').replace(/\s+/g,'_');
+  doc.save(`carton_invitation_${fname}.pdf`);
+  btn.textContent='⬇ Télécharger PDF'; btn.disabled=false;
 }
 
-/* ═══════════════════════════ PRINT ALL CARTONS ═══════════════════════════ */
-function printAllCartons(){
-  const win=window.open('','_blank','width=900,height=700');
-  const rows=GUESTS.map((g,i)=>{
-    const qd=`NOM:${g.n}\\nTEL:${g.p||''}\\nID:${i}`;
-    return `<div class="citem">
-      <div class="carton">
-        <div class="left">
-          <div class="tag">Cérémonie de mariage</div>
-          <div class="evt">Yves &amp; Épouse</div>
-          <div class="sub">Vous êtes cordialement invité(e)</div>
-          <div class="div"></div>
-          <div class="lbl">Nom de l'invité(e)</div>
-          <div class="iname">${g.n}</div>
-          ${g.p?`<div class="iphone">📞 ${g.p}</div>`:''}
-        </div>
-        <div class="right">
-          <div class="qrbox" id="cqr${i}"></div>
-          <div class="qlbl">Votre accès</div>
-        </div>
-        <div class="strip"></div>
-      </div>
-    </div>`;
-  }).join('');
+/* ── TÉLÉCHARGER TOUS LES PDFs (un par invité) ── */
+async function downloadAllPDF(){
+  const btn=document.getElementById('btn-dl-all');
+  const status=document.getElementById('dl-status');
+  btn.disabled=true;
+  const {jsPDF}=window.jspdf;
+  const total=GUESTS.length;
 
-  win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Jost:wght@300;400;500&display=swap');
-    *{margin:0;padding:0;box-sizing:border-box;}
-    body{background:#fff;padding:8mm;font-family:'Playfair Display',serif;}
-    .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8mm;}
-    .citem{page-break-inside:avoid;}
-    .carton{width:100%;aspect-ratio:148/100;background:linear-gradient(135deg,#1A1206,#2C1D08,#1A1206);border:1.5px solid #C9A84C;border-radius:3px;display:flex;align-items:stretch;overflow:hidden;position:relative;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
-    .carton::before,.carton::after{content:'';position:absolute;width:32px;height:32px;border-color:#E8D197;border-style:solid;opacity:.35;}
-    .carton::before{top:6px;left:6px;border-width:2px 0 0 2px;}
-    .carton::after{bottom:6px;right:6px;border-width:0 2px 2px 0;}
-    .left{flex:1;padding:14px 12px;display:flex;flex-direction:column;justify-content:center;border-right:1px solid rgba(201,168,76,.2);}
-    .tag{font-size:6px;letter-spacing:2.5px;text-transform:uppercase;color:#C9A84C;opacity:.7;margin-bottom:5px;font-family:'Jost',sans-serif;}
-    .evt{font-size:15px;font-weight:700;color:#C9A84C;line-height:1.1;margin-bottom:2px;}
-    .sub{font-size:9px;font-style:italic;color:#E8D197;opacity:.6;margin-bottom:10px;font-family:'Jost',sans-serif;}
-    .div{width:30px;height:1px;background:#C9A84C;opacity:.4;margin-bottom:10px;}
-    .lbl{font-size:6px;letter-spacing:2px;text-transform:uppercase;color:#6B5A3A;font-family:'Jost',sans-serif;margin-bottom:3px;}
-    .iname{font-size:12px;font-weight:600;color:#FAF7F0;}
-    .iphone{font-size:8px;color:#6B5A3A;margin-top:2px;font-family:'Jost',sans-serif;}
-    .right{width:90px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;padding:10px;}
-    .qrbox{background:#fff;border-radius:2px;padding:4px;width:68px;height:68px;display:flex;align-items:center;justify-content:center;}
-    .qrbox canvas,.qrbox img{width:60px!important;height:60px!important;}
-    .qlbl{font-size:6px;letter-spacing:1.5px;text-transform:uppercase;color:#C9A84C;opacity:.6;text-align:center;font-family:'Jost',sans-serif;}
-    .strip{position:absolute;bottom:0;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent,#C9A84C,#E8D197,#C9A84C,transparent);opacity:.5;}
-    @media print{@page{size:A4;margin:8mm;}body{padding:4mm;}}
-  </style></head><body>
-  <div class="grid">${rows}</div>
-  <script>
-    const data=${JSON.stringify(GUESTS.map((g,i)=>({n:g.n,p:g.p||'',i})))};
-    window.onload=function(){
-      data.forEach((g,idx)=>{
-        setTimeout(()=>{
-          const el=document.getElementById('cqr'+g.i);
-          if(!el)return;
-          try{new QRCode(el,{text:'NOM:'+g.n+'\\nTEL:'+g.p+'\\nID:'+g.i,width:60,height:60,colorDark:'#1A1510',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M});}catch(e){}
-        },idx*6);
-      });
-      setTimeout(()=>window.print(), data.length*6+1200);
-    };
-  <\/script></body></html>`);
-  win.document.close();
+  // On génère un PDF multi-pages (1 carton par page) → 1 seul fichier
+  const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a5'});
+  const W=180, H=100, xOff=15, yOff=24;
+
+  for(let i=0;i<total;i++){
+    if(i>0) doc.addPage();
+    status.textContent=`Génération ${i+1}/${total}…`;
+    await drawCarton(doc,GUESTS[i],i,xOff,yOff,W,H);
+    // Laisser respirer le thread UI
+    await new Promise(r=>setTimeout(r,0));
+  }
+  status.textContent='✓ Terminé !';
+  doc.save('cartons_invitation_mariage_yves_TOUS.pdf');
+  setTimeout(()=>{status.textContent='';btn.disabled=false;},3000);
 }
+
 
 /* ═══════════════════════════ SCANNER ═══════════════════════════ */
 let camStream=null, scanning=false;
