@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mariage Yves — Gestion des Invités</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400;1,600&family=Jost:wght@300;400;500&display=swap');
+
+:root {
+  --gold:#C9A84C; --gold-light:#E8D197; --gold-dark:#8B6914;
+  --cream:#FAF7F0; --dark:#1A1510; --dark2:#2C2416;
+  --mid:#6B5A3A; --border:rgba(201,168,76,0.22);
+  --green:#2D6A4F; --green-l:#52B788; --red:#9E2A2B;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Jost',sans-serif;background:var(--dark);color:var(--cream);min-height:100vh;}
+
+/* HEADER */
+header{background:linear-gradient(135deg,var(--dark2),#0F0C08);border-bottom:1px solid var(--border);padding:18px 36px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:200;}
+.logo{font-family:'Playfair Display',serif;font-size:24px;font-weight:400;font-style:italic;color:var(--gold-light);}
+.logo b{color:var(--gold);font-style:normal;font-weight:700;}
+nav{display:flex;gap:5px;}
+.tab{padding:8px 18px;border:1px solid var(--border);background:transparent;color:var(--gold-light);font-family:'Jost',sans-serif;font-size:11px;letter-spacing:2px;text-transform:uppercase;cursor:pointer;border-radius:2px;transition:all .2s;}
+.tab:hover{background:rgba(201,168,76,.1);}
+.tab.active{background:var(--gold);color:var(--dark);border-color:var(--gold);font-weight:500;}
+
+main{padding:32px 36px;max-width:1440px;margin:0 auto;}
+.page{display:none;} .page.active{display:block;}
+
+/* STATS */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:28px;}
+.stat{background:linear-gradient(135deg,var(--dark2),#1F1A10);border:1px solid var(--border);border-radius:4px;padding:18px 20px;position:relative;overflow:hidden;}
+.stat::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);}
+.stat-lbl{font-size:9px;letter-spacing:2.5px;text-transform:uppercase;color:var(--gold);margin-bottom:8px;opacity:.8;}
+.stat-val{font-family:'Playfair Display',serif;font-size:38px;font-weight:400;color:var(--gold-light);line-height:1;}
+.stat-sub{font-size:11px;color:var(--mid);margin-top:5px;}
+.prog-out{background:rgba(201,168,76,.1);border-radius:2px;height:4px;margin-top:8px;overflow:hidden;}
+.prog-in{height:100%;background:linear-gradient(90deg,var(--gold-dark),var(--gold));border-radius:2px;transition:width .6s ease;}
+
+/* TOOLBAR */
+.toolbar{display:flex;gap:9px;align-items:center;margin-bottom:16px;flex-wrap:wrap;}
+.search-wrap{position:relative;flex:1;min-width:200px;}
+.search-wrap input{width:100%;padding:10px 14px 10px 40px;background:var(--dark2);border:1px solid var(--border);border-radius:3px;color:var(--cream);font-family:'Jost',sans-serif;font-size:13px;outline:none;transition:border-color .2s;}
+.search-wrap input:focus{border-color:var(--gold);}
+.search-wrap input::placeholder{color:var(--mid);}
+.s-icon{position:absolute;left:13px;top:50%;transform:translateY(-50%);color:var(--gold);font-size:13px;pointer-events:none;}
+
+.btn{padding:10px 18px;border-radius:2px;font-family:'Jost',sans-serif;font-size:10px;letter-spacing:2px;text-transform:uppercase;cursor:pointer;transition:all .2s;font-weight:500;border:none;white-space:nowrap;}
+.btn-gold{background:var(--gold);color:var(--dark);}
+.btn-gold:hover{background:var(--gold-light);transform:translateY(-1px);}
+.btn-ol{background:transparent;border:1px solid var(--border);color:var(--gold-light);}
+.btn-ol:hover{border-color:var(--gold);color:var(--gold);}
+.btn-green{background:var(--green);color:#fff;}
+.btn-green:hover{background:#1d4d38;}
+.btn-csv{background:linear-gradient(135deg,#1a3a2a,#2D6A4F);color:#A7D4BE;border:1px solid rgba(82,183,136,.3);}
+.btn-csv:hover{border-color:var(--green-l);color:var(--green-l);}
+
+/* CHIPS */
+.chips{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:16px;}
+.chip{padding:4px 12px;border:1px solid var(--border);border-radius:20px;font-size:9px;letter-spacing:2px;text-transform:uppercase;cursor:pointer;color:var(--mid);transition:all .2s;}
+.chip:hover{border-color:var(--gold);color:var(--gold);}
+.chip.active{background:rgba(201,168,76,.12);border-color:var(--gold);color:var(--gold-light);}
+
+/* SEC HEADER */
+.sec-hdr{display:flex;align-items:center;gap:14px;margin-bottom:18px;}
+.sec-ttl{font-family:'Playfair Display',serif;font-size:20px;font-weight:400;font-style:italic;color:var(--gold-light);white-space:nowrap;}
+.sec-line{flex:1;height:1px;background:linear-gradient(90deg,var(--border),transparent);}
+
+/* GUEST GRID */
+.guest-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(245px,1fr));gap:12px;}
+.gcard{background:var(--dark2);border:1px solid var(--border);border-radius:4px;padding:16px;display:flex;flex-direction:column;gap:9px;transition:all .2s;position:relative;}
+.gcard:hover{border-color:rgba(201,168,76,.5);transform:translateY(-2px);}
+.gcard.present{border-left:3px solid var(--green-l);}
+.g-group{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--gold);opacity:.7;}
+.g-name{font-family:'Playfair Display',serif;font-size:15px;font-weight:600;color:var(--gold-light);line-height:1.3;}
+.g-phone{font-size:11px;color:var(--mid);}
+.g-dot{position:absolute;top:10px;right:10px;width:8px;height:8px;border-radius:50%;background:var(--mid);}
+.present .g-dot{background:var(--green-l);box-shadow:0 0 6px rgba(82,183,136,.6);}
+.g-actions{display:flex;gap:6px;margin-top:3px;}
+.ga-p{flex:1;padding:6px;border:1px solid var(--green);background:transparent;color:var(--green-l);font-family:'Jost',sans-serif;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;cursor:pointer;border-radius:2px;transition:all .2s;}
+.ga-p:hover,.present .ga-p{background:var(--green);color:#fff;}
+.ga-a{flex:1;padding:6px;border:1px solid var(--red);background:transparent;color:#E07A7B;font-family:'Jost',sans-serif;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;cursor:pointer;border-radius:2px;transition:all .2s;}
+.ga-a:hover{background:var(--red);color:#fff;}
+
+/* QR PAGE */
+.qr-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px;}
+.qr-card{background:var(--dark2);border:1px solid var(--border);border-radius:4px;padding:14px;display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;}
+.qr-box{background:#fff;border-radius:3px;padding:7px;width:104px;height:104px;display:flex;align-items:center;justify-content:center;}
+.qr-box canvas,.qr-box img{width:90px!important;height:90px!important;}
+.qr-name{font-family:'Playfair Display',serif;font-size:13px;font-weight:600;color:var(--gold-light);line-height:1.2;}
+.qr-phone{font-size:10px;color:var(--mid);}
+.qr-group{font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--gold);opacity:.6;}
+
+/* SCANNER */
+.scan-wrap{max-width:580px;margin:0 auto;}
+.scan-box{background:var(--dark2);border:2px solid var(--gold);border-radius:8px;padding:36px;text-align:center;position:relative;margin-bottom:24px;}
+.scan-box::before,.scan-box::after{content:'';position:absolute;width:28px;height:28px;}
+.scan-box::before{top:-2px;left:-2px;border-top:3px solid var(--gold-light);border-left:3px solid var(--gold-light);border-radius:4px 0 0 0;}
+.scan-box::after{top:-2px;right:-2px;border-top:3px solid var(--gold-light);border-right:3px solid var(--gold-light);border-radius:0 4px 0 0;}
+.scan-hint{font-family:'Playfair Display',serif;font-size:18px;font-style:italic;color:var(--gold-light);margin-bottom:18px;opacity:.7;}
+#video-feed{width:100%;max-width:380px;border-radius:4px;display:none;}
+#scan-ph{color:var(--mid);font-size:13px;padding:20px;}
+.scan-result{background:linear-gradient(135deg,var(--dark2),#1F1A10);border:1px solid var(--gold);border-radius:4px;padding:28px;margin-top:20px;display:none;animation:fadeUp .3s ease;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.res-name{font-family:'Playfair Display',serif;font-size:28px;font-weight:400;color:var(--gold-light);margin-bottom:6px;}
+.res-phone{font-size:14px;color:var(--mid);margin-bottom:16px;}
+.res-badge{font-size:11px;letter-spacing:2px;text-transform:uppercase;padding:9px 22px;border-radius:2px;display:inline-block;font-weight:500;}
+.rb-found{background:var(--green);color:#fff;}
+.rb-nf{background:var(--red);color:#fff;}
+.rb-already{background:var(--gold-dark);color:var(--cream);}
+.manual-row{display:flex;gap:9px;margin-top:18px;}
+.manual-row input{flex:1;padding:11px 14px;background:var(--dark2);border:1px solid var(--border);border-radius:3px;color:var(--cream);font-family:'Jost',sans-serif;font-size:13px;outline:none;}
+.manual-row input:focus{border-color:var(--gold);}
+
+/* MODAL CARTON */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:500;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .3s;}
+.modal-bg.open{opacity:1;pointer-events:all;}
+.modal-box{background:var(--dark2);border:1px solid var(--gold);border-radius:6px;padding:28px;width:90%;max-width:520px;position:relative;}
+.modal-close{position:absolute;top:12px;right:14px;background:none;border:none;color:var(--gold);font-size:20px;cursor:pointer;line-height:1;}
+
+/* ── CARTON PREVIEW (écran + impression) ── */
+.carton-preview{
+  width:100%; aspect-ratio:3/2;
+  background:linear-gradient(135deg,#1A1206 0%,#2C1D08 50%,#1A1206 100%);
+  border:2px solid var(--gold);
+  border-radius:4px;
+  display:flex;
+  align-items:stretch;
+  overflow:hidden;
+  position:relative;
+  margin:16px 0;
+  font-family:'Playfair Display',serif;
+}
+/* motif coins */
+.carton-preview::before,.carton-preview::after{
+  content:'';position:absolute;width:50px;height:50px;
+  border-color:var(--gold-light);border-style:solid;opacity:.35;
+}
+.carton-preview::before{top:8px;left:8px;border-width:2px 0 0 2px;}
+.carton-preview::after{bottom:8px;right:8px;border-width:0 2px 2px 0;}
+
+.carton-left{
+  flex:1;padding:24px 20px;
+  display:flex;flex-direction:column;justify-content:center;align-items:flex-start;
+  border-right:1px solid rgba(201,168,76,.2);
+}
+.carton-tag{font-size:8px;letter-spacing:3px;text-transform:uppercase;color:var(--gold);opacity:.7;margin-bottom:8px;font-family:'Jost',sans-serif;}
+.carton-event{font-size:20px;font-weight:700;color:var(--gold);line-height:1.1;margin-bottom:2px;}
+.carton-event-sub{font-size:11px;font-style:italic;color:var(--gold-light);opacity:.6;margin-bottom:16px;font-family:'Jost',sans-serif;}
+.carton-divider{width:40px;height:1px;background:var(--gold);opacity:.4;margin-bottom:14px;}
+.carton-invite-lbl{font-size:8px;letter-spacing:2px;text-transform:uppercase;color:var(--mid);font-family:'Jost',sans-serif;margin-bottom:4px;}
+.carton-invite-name{font-size:16px;font-weight:600;color:var(--cream);line-height:1.2;}
+.carton-invite-phone{font-size:10px;color:var(--mid);margin-top:4px;font-family:'Jost',sans-serif;}
+
+.carton-right{
+  width:130px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:16px;
+}
+.carton-qr-box{background:#fff;border-radius:3px;padding:6px;width:90px;height:90px;display:flex;align-items:center;justify-content:center;}
+.carton-qr-box canvas,.carton-qr-box img{width:78px!important;height:78px!important;}
+.carton-qr-lbl{font-size:8px;letter-spacing:1.5px;text-transform:uppercase;color:var(--gold);opacity:.6;text-align:center;font-family:'Jost',sans-serif;}
+.carton-bottom-strip{
+  position:absolute;bottom:0;left:0;right:0;height:4px;
+  background:linear-gradient(90deg,transparent,var(--gold),var(--gold-light),var(--gold),transparent);
+  opacity:.5;
+}
+.modal-actions{display:flex;gap:9px;justify-content:flex-end;margin-top:8px;}
+
+/* ════════════════════════════════
+   PRINT STYLES
+════════════════════════════════ */
+@media print {
+  body{background:#fff!important;color:#111!important;}
+  header,.stats,.toolbar,.chips,.sec-hdr,.g-actions,.g-dot,
+  .btn,.modal-bg,.scan-wrap,#page-scanner,#page-dashboard{display:none!important;}
+  main{padding:4mm!important;}
+
+  /* QR Sheet */
+  #page-qrcodes.active .qr-grid{
+    display:grid!important;
+    grid-template-columns:repeat(4,1fr)!important;
+    gap:6mm!important;
+    page-break-inside:auto;
+  }
+  .qr-card{
+    border:1px solid #ccc!important;background:#fff!important;
+    color:#111!important;page-break-inside:avoid;
+    padding:8px!important;
+  }
+  .qr-name,.qr-phone,.qr-group{color:#111!important;}
+
+  /* Carton Sheet */
+  #print-cartons{display:block!important;}
+  .print-carton-grid{
+    display:grid!important;
+    grid-template-columns:repeat(2,1fr)!important;
+    gap:8mm!important;
+    page-break-inside:auto;
+  }
+  .print-carton-item{page-break-inside:avoid;}
+}
+
+#print-cartons{display:none;}
+
+/* print carton item adapté A4 */
+.print-carton-item .carton-preview{
+  background:linear-gradient(135deg,#1A1206,#2C1D08,#1A1206)!important;
+  -webkit-print-color-adjust:exact;
+  print-color-adjust:exact;
+}
+
+.hidden{display:none!important;}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Mariage <b>Yves</b> — Invités</div>
+  <nav>
+    <button class="tab active" onclick="showPage('dashboard',this)">📊 Dashboard</button>
+    <button class="tab" onclick="showPage('qrcodes',this)">📱 QR Codes</button>
+    <button class="tab" onclick="showPage('scanner',this)">📷 Scanner</button>
+  </nav>
+</header>
+
+<main>
+
+<!-- ══ DASHBOARD ══ -->
+<div id="page-dashboard" class="page active">
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-lbl">Total Invités</div>
+      <div class="stat-val" id="s-total">0</div>
+      <div class="stat-sub">sur la liste officielle</div>
+    </div>
+    <div class="stat">
+      <div class="stat-lbl">Présents</div>
+      <div class="stat-val" id="s-present" style="color:var(--green-l)">0</div>
+      <div class="stat-sub">enregistrés à l'entrée</div>
+      <div class="prog-out"><div class="prog-in" id="s-prog" style="width:0%"></div></div>
+    </div>
+    <div class="stat">
+      <div class="stat-lbl">En attente</div>
+      <div class="stat-val" id="s-pending">0</div>
+      <div class="stat-sub">pas encore arrivés</div>
+    </div>
+    <div class="stat">
+      <div class="stat-lbl">Taux présence</div>
+      <div class="stat-val" id="s-rate">0%</div>
+      <div class="stat-sub">de la liste totale</div>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <div class="search-wrap">
+      <span class="s-icon">🔍</span>
+      <input type="text" id="search-in" placeholder="Rechercher un invité…" oninput="renderList()">
+    </div>
+    <button class="btn btn-csv" onclick="exportCSV()">⬇ Exporter CSV</button>
+    <button class="btn btn-ol" onclick="resetAll()" title="Remettre toutes présences à zéro">↺ Reset</button>
+  </div>
+
+  <div class="chips" id="chips"></div>
+  <div class="sec-hdr"><div class="sec-ttl">Liste des invités</div><div class="sec-line"></div><span id="count-lbl" style="font-size:11px;color:var(--mid);white-space:nowrap"></span></div>
+  <div class="guest-grid" id="guest-list"></div>
+</div>
+
+<!-- ══ QR CODES ══ -->
+<div id="page-qrcodes" class="page">
+  <div class="sec-hdr"><div class="sec-ttl">QR Codes des invités</div><div class="sec-line"></div></div>
+  <div class="toolbar" style="margin-bottom:20px;">
+    <button class="btn btn-gold" onclick="window.print()">🖨 Imprimer la fiche QR</button>
+    <button class="btn btn-ol" onclick="openCartonModal()">💌 Aperçu carton invitation</button>
+    <button class="btn btn-green" onclick="printAllCartons()">🖨 Imprimer tous les cartons</button>
+    <span style="font-size:11px;color:var(--mid);margin-left:4px;">QR codes encodés — fonctionnent sans internet</span>
+  </div>
+  <div class="qr-grid" id="qr-list"></div>
+</div>
+
+<!-- ══ SCANNER ══ -->
+<div id="page-scanner" class="page">
+  <div class="scan-wrap">
+    <div class="sec-hdr"><div class="sec-ttl">Scanner un QR code</div><div class="sec-line"></div></div>
+    <div class="scan-box">
+      <p class="scan-hint">Pointez la caméra vers le QR code</p>
+      <video id="video-feed" autoplay playsinline></video>
+      <div id="scan-ph">📷 Cliquez sur "Démarrer" pour scanner</div>
+      <br>
+      <button class="btn btn-gold" id="btn-cam" onclick="startCam()">Démarrer la caméra</button>
+      <button class="btn btn-ol hidden" id="btn-stop" onclick="stopCam()" style="margin-left:8px;">Arrêter</button>
+    </div>
+    <div style="text-align:center;color:var(--mid);font-size:11px;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:14px;">— ou saisir le nom —</div>
+    <div class="manual-row">
+      <input type="text" id="manual-in" placeholder="Nom de l'invité…" onkeydown="if(event.key==='Enter')manualCheck()">
+      <button class="btn btn-gold" onclick="manualCheck()">Vérifier</button>
+    </div>
+    <div class="scan-result" id="scan-result">
+      <div class="res-name" id="res-name"></div>
+      <div class="res-phone" id="res-phone"></div>
+      <span class="res-badge" id="res-badge"></span>
+    </div>
+  </div>
+</div>
+
+</main>
+
+<!-- ══ MODAL CARTON ══ -->
+<div class="modal-bg" id="modal-bg" onclick="if(event.target===this)closeModal()">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <div class="sec-ttl" style="margin-bottom:4px;">Aperçu — Carton d'invitation</div>
+    <p style="font-size:11px;color:var(--mid);margin-bottom:4px;">Sélectionnez un invité pour prévisualiser son carton</p>
+    <div style="display:flex;gap:8px;margin-bottom:10px;">
+      <select id="modal-select" onchange="renderModalCarton()" style="flex:1;padding:9px 12px;background:var(--dark2);border:1px solid var(--border);color:var(--cream);font-family:'Jost',sans-serif;font-size:13px;border-radius:3px;outline:none;">
+        <option value="">-- Choisir un invité --</option>
+      </select>
+    </div>
+    <div id="modal-carton-wrap"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ol" onclick="closeModal()">Fermer</button>
+      <button class="btn btn-gold" onclick="printOneCarton()">🖨 Imprimer ce carton</button>
+    </div>
+  </div>
+</div>
+
+<!-- Zone d'impression des cartons -->
+<div id="print-cartons">
+  <div class="print-carton-grid" id="print-carton-grid"></div>
+</div>
+
+<script>
+/* ═══════════════════════════ DATA ═══════════════════════════ */
+const GUESTS = [
+  {n:"Pasteur Anzouan",p:"0707499048",g:"Invités d'Honneur"},
+  {n:"Madame Anzouan",p:"",g:"Invités d'Honneur"},
+  {n:"PST Seth",p:"",g:"Invités d'Honneur"},
+  {n:"Pasteur Ayoman",p:"",g:"Invités d'Honneur"},
+  {n:"Madame Ayoman",p:"",g:"Invités d'Honneur"},
+  {n:"PST Kambou",p:"",g:"Invités d'Honneur"},
+  {n:"Mme PST Kambou",p:"",g:"Invités d'Honneur"},
+  {n:"M. Guy Ezané",p:"",g:"Invités d'Honneur"},
+  {n:"M. Dagrou Théodore",p:"0707656639",g:"Magistrats"},
+  {n:"M. Zahiri Ziki Sébastien",p:"0758319777",g:"Magistrats"},
+  {n:"Mme Marie France Akichi",p:"0101799400",g:"Magistrats"},
+  {n:"Mme Pitey Noëlle",p:"",g:"Magistrats"},
+  {n:"Audrey Gba",p:"0103778373",g:"Magistrats"},
+  {n:"Bintou Fadiga",p:"0709424242",g:"Magistrats"},
+  {n:"Dion Jean",p:"",g:"Famille"},
+  {n:"M. Vah Sam",p:"",g:"Famille"},
+  {n:"Dion Sao",p:"",g:"Famille"},
+  {n:"Mme Dion Sao",p:"",g:"Famille"},
+  {n:"Tieffi",p:"0103437076",g:"Famille"},
+  {n:"Mme Teffi",p:"",g:"Famille"},
+  {n:"M. Seu",p:"0707183829",g:"Famille"},
+  {n:"Mme Seu",p:"",g:"Famille"},
+  {n:"M. Solo Dembélé",p:"",g:"Famille"},
+  {n:"Papa Dah",p:"",g:"Famille"},
+  {n:"Maman Dah",p:"0758246722",g:"Famille"},
+  {n:"M. Dah Dieudonné",p:"0711511250",g:"Famille"},
+  {n:"Mme Dah Dieudonné",p:"",g:"Famille"},
+  {n:"Maman Maïga",p:"0705456049",g:"Famille"},
+  {n:"Tata Rachelle",p:"",g:"Famille"},
+  {n:"Jean Louis",p:"0777225679",g:"Famille"},
+  {n:"Augustin",p:"0768234827",g:"Famille"},
+  {n:"Timothée",p:"",g:"Famille"},
+  {n:"Maman Suzanne",p:"0759200679",g:"Famille"},
+  {n:"Tata Mado",p:"",g:"Famille"},
+  {n:"M. Somé",p:"",g:"Famille"},
+  {n:"Mme Somé",p:"",g:"Famille"},
+  {n:"Mme Guei",p:"",g:"Famille"},
+  {n:"Mme Nean",p:"",g:"Famille"},
+  {n:"Madame Koua",p:"0748480422",g:"Magistrats"},
+  {n:"M. Zadi Guéttey",p:"0707443964",g:"Magistrats"},
+  {n:"M. Faye",p:"0757527371",g:"Magistrats"},
+  {n:"M. Kone Donald",p:"0707396470",g:"Magistrats"},
+  {n:"M. Rodrigue Kouassi",p:"0708630326",g:"Magistrats"},
+  {n:"Maître Boli Bi",p:"0140097322",g:"Magistrats"},
+  {n:"Dale Emmanuel",p:"",g:"Magistrats"},
+  {n:"Adassa N'Goran",p:"0768905753",g:"Magistrats"},
+  {n:"Yapo Daniel",p:"0748606995",g:"Magistrats"},
+  {n:"Djiroh Arman",p:"0153009695",g:"Magistrats"},
+  {n:"Professeur Bamba N'Galadjo",p:"",g:"Magistrats"},
+  {n:"M. Yehou",p:"0709900620",g:"Magistrats"},
+  {n:"Madame Yehou",p:"",g:"Magistrats"},
+  {n:"Yehou Pepeye",p:"",g:"Magistrats"},
+  {n:"Deré Ossehin",p:"0556325142",g:"Magistrats"},
+  {n:"Madame Diomande Fatou",p:"0747260282",g:"Magistrats"},
+  {n:"Nango Angela",p:"0777344499",g:"Magistrats"},
+  {n:"Goue Rebeca",p:"0748338704",g:"Magistrats"},
+  {n:"Yam-Sa Ouatara",p:"0789215864",g:"Magistrats"},
+  {n:"Germain Kouassi",p:"",g:"Magistrats"},
+  {n:"Ela Procureur",p:"",g:"Magistrats"},
+  {n:"Francis N'Guessan",p:"",g:"Magistrats"},
+  {n:"M. Gnambli",p:"0757100636",g:"Magistrats"},
+  {n:"Madame Gnambli",p:"",g:"Magistrats"},
+  {n:"M. Ouraga Bokolo",p:"0758795874",g:"Magistrats"},
+  {n:"Bli Nesmond",p:"0708564889",g:"Magistrats"},
+  {n:"Prince Blea",p:"0789303044",g:"Magistrats"},
+  {n:"Christian Tyeoulou",p:"",g:"Magistrats"},
+  {n:"M. Amani",p:"0778519247",g:"Magistrats"},
+  {n:"Madame Amani",p:"",g:"Magistrats"},
+  {n:"M. Tanoh",p:"0708427450",g:"Magistrats"},
+  {n:"M. Camara Wilfried",p:"",g:"Magistrats"},
+  {n:"Mme Kouassi Rita",p:"",g:"Magistrats"},
+  {n:"Aurel Blea",p:"0758167314",g:"Magistrats"},
+  {n:"M. Soumahoro Dely",p:"0758100340",g:"Magistrats"},
+  {n:"Mme Soumahoro",p:"",g:"Magistrats"},
+  {n:"Madame Irigale",p:"",g:"Invités d'Honneur"},
+  {n:"M. Irigale",p:"",g:"Invités d'Honneur"},
+  {n:"M. Fae",p:"0708018767",g:"Magistrats"},
+  {n:"Sylla Lamine",p:"0707888156",g:"Magistrats"},
+  {n:"Ani Toto",p:"",g:"Magistrats"},
+  {n:"Dembele Rachelle",p:"0708732939",g:"Magistrats"},
+  {n:"N'Taye Alida",p:"0141666898",g:"Magistrats"},
+  {n:"Mme Ouatara Hermance",p:"0759331234",g:"Magistrats"},
+  {n:"Traore Inah",p:"0708820792",g:"Magistrats"},
+  {n:"Brou Depardieu",p:"0707233042",g:"Magistrats"},
+  {n:"Akossi Raissa",p:"0707190288",g:"Magistrats"},
+  {n:"Desaress Bilé",p:"0758901977",g:"Magistrats"},
+  {n:"Kouame Celestin",p:"0506119408",g:"Amis"},
+  {n:"Madame Kouame",p:"",g:"Amis"},
+  {n:"Komenan N'Da Noël",p:"0708363214",g:"Amis"},
+  {n:"Mme Akissi",p:"",g:"Amis"},
+  {n:"Mme Amani",p:"",g:"Amis"},
+  {n:"Doc Kouassi Kouassi",p:"0707690284",g:"Amis"},
+  {n:"Madame Kouassi Kouassi",p:"",g:"Amis"},
+  {n:"Komenan Austy",p:"0708330871",g:"Amis"},
+  {n:"Maman Samaké",p:"",g:"Famille"},
+  {n:"Papa Samaké",p:"",g:"Famille"},
+  {n:"Papa Sanou",p:"",g:"Famille"},
+  {n:"Maman Sanou",p:"",g:"Famille"},
+  {n:"M. Ilboudo Dieudonné",p:"",g:"Famille"},
+  {n:"Mme Ilboudo Dieudonné",p:"0708096797",g:"Famille"},
+  {n:"M. Palenfo Pierre",p:"0759549577",g:"Famille"},
+  {n:"Mme Apastes Aicheou",p:"0702065271",g:"Famille"},
+  {n:"M. Ange Kouakou",p:"0709019139",g:"Selys Africa"},
+  {n:"M. Désiré Anoh",p:"0748100744",g:"Selys Africa"},
+  {n:"M. Axel Gbanouhan",p:"0778735705",g:"Selys Africa"},
+  {n:"M. Abraham Dionsogo",p:"50403638",g:"Selys Africa"},
+  {n:"M. Wilfried Koby",p:"03970634",g:"Selys Africa"},
+  {n:"Léandre Touré",p:"0779392506",g:"Selys Africa"},
+  {n:"Martialo Aicheou",p:"0500238989",g:"Selys Africa"},
+  {n:"Mlle Priscille",p:"0747960622",g:"Selys Africa"},
+  {n:"Mlle Syntiche",p:"0565721257",g:"Selys Africa"},
+  {n:"Mlle Melaine",p:"0757821073",g:"Selys Africa"},
+  {n:"M. Ozias",p:"0788205582",g:"Selys Africa"},
+  {n:"Mlle Eliane",p:"0708990456",g:"Selys Africa"},
+  {n:"M. Parfait Kouadio",p:"0757011618",g:"G4S"},
+  {n:"Mlle Jemima Dembélé",p:"0749114914",g:"Famille"},
+  {n:"Mlle Jacqueline Dembélé",p:"0740366969",g:"Famille"},
+  {n:"Mlle Sanou Mariama",p:"0555374801",g:"Famille"},
+  {n:"M. Drabo Marcel",p:"0758977851",g:"G4S"},
+  {n:"Mme Drabo",p:"",g:"G4S"},
+  {n:"M. Coulibaly",p:"07048278",g:"G4S"},
+  {n:"M. Cédric",p:"0748285706",g:"G4S"},
+  {n:"M. Alain",p:"0709336843",g:"G4S"},
+  {n:"M. Antoine",p:"0749970796",g:"G4S"},
+  {n:"M. Touré Ismael",p:"0709643764",g:"G4S"},
+  {n:"Mme Victoria",p:"0103313874",g:"G4S"},
+  {n:"M. Franck Kambou",p:"0778630092",g:"G4S"},
+  {n:"Mme Goita Lydie",p:"0709428758",g:"Amis"},
+  {n:"M. Tanguy Stéphane",p:"0757525317",g:"Amis"},
+  {n:"M. Yves Dimaria",p:"0585174173",g:"Amis"},
+  {n:"Mlle Edwige Yao",p:"0709296130",g:"Amis"},
+  {n:"Déborah",p:"0779943242",g:"G4S"},
+  {n:"Ben",p:"0704188544",g:"Amis"},
+  {n:"Mme Neamke",p:"0707404804",g:"Église"},
+  {n:"N'Gessan Bernadette",p:"0709004121",g:"Église"},
+  {n:"Doc Kouadio Bertin",p:"0712040230",g:"Église"},
+  {n:"Lorence Coulibaly",p:"0707333315",g:"Église"},
+  {n:"M. Gnambri (AD Alepe)",p:"0749496270",g:"Église"},
+  {n:"Madame Gnanbri",p:"",g:"Église"},
+  {n:"M. Rabe Simplice",p:"",g:"Église"},
+  {n:"Glohé Herman",p:"",g:"Église"},
+  {n:"Pasteur Irigalé Anderson",p:"0749136793",g:"Église"},
+  {n:"Madame PST Irigalé",p:"",g:"Église"},
+  {n:"Ancien Assie",p:"0707795590",g:"Église"},
+  {n:"Mme Ancien Assie",p:"",g:"Église"},
+  {n:"Ancien Weli Napoléon",p:"",g:"Église"},
+  {n:"Ancien Dro",p:"0787870787",g:"Église"},
+  {n:"Ancien Kouassi",p:"",g:"Église"},
+  {n:"Mme Dro",p:"0707333315",g:"Église"},
+  {n:"M. Bale",p:"0707772969",g:"Église"},
+  {n:"Mme Bale",p:"",g:"Église"},
+  {n:"M. Kouyo",p:"0707238235",g:"Église"},
+  {n:"Mme Kouyo",p:"",g:"Église"},
+  {n:"M. Koffi",p:"0707968821",g:"Église"},
+  {n:"Mme Koffi",p:"",g:"Église"},
+  {n:"Mme Tehe Ami",p:"0707081152",g:"Église"},
+  {n:"Bessin Juliete",p:"0707685467",g:"Église"},
+  {n:"Ancien Soro",p:"",g:"Église"},
+  {n:"Mme Ancien Soro",p:"",g:"Église"},
+  {n:"Pasteur Traoré Jean",p:"",g:"Église"},
+  {n:"Mme Traore Jean",p:"",g:"Église"},
+  {n:"Pasteur Touré",p:"",g:"Église"},
+  {n:"Mme Touré",p:"",g:"Église"},
+  {n:"Pasteur Oulasié",p:"",g:"Église"},
+  {n:"Mme PST Oulasié",p:"",g:"Église"},
+  {n:"Diane Kanga",p:"",g:"Cortège"},
+];
+
+/* ═══════════════════════════ STATE ═══════════════════════════ */
+const ST = { present: new Set(), group: 'Tous' };
+(function load(){try{const s=localStorage.getItem('wyv_pres');if(s)JSON.parse(s).forEach(i=>ST.present.add(i));}catch(e){}})();
+function save(){try{localStorage.setItem('wyv_pres',JSON.stringify([...ST.present]));}catch(e){}}
+
+/* ═══════════════════════════ PAGES ═══════════════════════════ */
+function showPage(name,btn){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  btn.classList.add('active');
+  if(name==='qrcodes')buildQR();
+  updateStats();
+}
+
+/* ═══════════════════════════ STATS ═══════════════════════════ */
+function updateStats(){
+  const tot=GUESTS.length, pres=ST.present.size, pend=tot-pres, rate=Math.round(pres/tot*100)||0;
+  document.getElementById('s-total').textContent=tot;
+  document.getElementById('s-present').textContent=pres;
+  document.getElementById('s-pending').textContent=pend;
+  document.getElementById('s-rate').textContent=rate+'%';
+  document.getElementById('s-prog').style.width=rate+'%';
+}
+
+/* ═══════════════════════════ GUEST LIST ═══════════════════════════ */
+function buildChips(){
+  const groups=['Tous',...new Set(GUESTS.map(g=>g.g))];
+  document.getElementById('chips').innerHTML=groups.map(g=>
+    `<div class="chip ${g===ST.group?'active':''}" onclick="ST.group='${g}';buildChips();renderList()">${g}</div>`
+  ).join('');
+}
+function renderList(){
+  const q=(document.getElementById('search-in').value||'').toLowerCase();
+  const filtered=GUESTS.filter((g,i)=>{
+    const mg=ST.group==='Tous'||g.g===ST.group;
+    const mq=!q||g.n.toLowerCase().includes(q)||(g.p&&g.p.includes(q));
+    return mg&&mq;
+  });
+  document.getElementById('count-lbl').textContent=filtered.length+' / '+GUESTS.length;
+  document.getElementById('guest-list').innerHTML=filtered.map(g=>{
+    const i=GUESTS.indexOf(g), ok=ST.present.has(i);
+    return `<div class="gcard ${ok?'present':''}" id="gc${i}">
+      <div class="g-dot"></div>
+      <div class="g-group">${g.g}</div>
+      <div class="g-name">${g.n}</div>
+      ${g.p?`<div class="g-phone">📞 ${g.p}</div>`:''}
+      <div class="g-actions">
+        <button class="ga-p" onclick="mark(${i},true)">${ok?'✓ Présent':'Marquer présent'}</button>
+        ${ok?`<button class="ga-a" onclick="mark(${i},false)">Annuler</button>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+function mark(i,v){v?ST.present.add(i):ST.present.delete(i);save();renderList();updateStats();}
+
+/* ═══════════════════════════ CSV EXPORT ═══════════════════════════ */
+function exportCSV(){
+  const rows=[['ID','Nom','Téléphone','Groupe','Présent','Heure']];
+  GUESTS.forEach((g,i)=>{
+    rows.push([i+1, g.n, g.p||'', g.g, ST.present.has(i)?'OUI':'NON', ST.present.has(i)?new Date().toLocaleTimeString('fr-FR'):'']);
+  });
+  const csv=rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\r\n');
+  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'});
+  const a=Object.assign(document.createElement('a'),{href:URL.createObjectURL(blob),download:'presences_mariage_yves_'+new Date().toISOString().slice(0,10)+'.csv'});
+  a.click();
+}
+
+/* ═══════════════════════════ RESET ═══════════════════════════ */
+function resetAll(){
+  if(!confirm('Remettre toutes les présences à zéro ?'))return;
+  ST.present.clear();save();renderList();updateStats();
+}
+
+/* ═══════════════════════════ QR CODES ═══════════════════════════ */
+let qrDone=false;
+function buildQR(){
+  if(qrDone)return; qrDone=true;
+  const c=document.getElementById('qr-list');
+  c.innerHTML=GUESTS.map((g,i)=>`
+    <div class="qr-card">
+      <div class="qr-group">${g.g}</div>
+      <div class="qr-name">${g.n}</div>
+      ${g.p?`<div class="qr-phone">📞 ${g.p}</div>`:''}
+      <div class="qr-box" id="qr${i}"></div>
+    </div>`).join('');
+  GUESTS.forEach((g,i)=>setTimeout(()=>{
+    try{new QRCode(document.getElementById('qr'+i),{text:`NOM:${g.n}\nTEL:${g.p||''}\nID:${i}`,width:90,height:90,colorDark:'#1A1510',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M});}catch(e){}
+  },i*4));
+}
+
+/* ═══════════════════════════ CARTON HTML ═══════════════════════════ */
+function cartonHTML(g, i, qrId){
+  return `<div class="carton-preview">
+    <div class="carton-left">
+      <div class="carton-tag">Cérémonie de mariage</div>
+      <div class="carton-event">Yves & Épouse</div>
+      <div class="carton-event-sub">Vous êtes cordialement invité(e)</div>
+      <div class="carton-divider"></div>
+      <div class="carton-invite-lbl">Nom de l'invité(e)</div>
+      <div class="carton-invite-name">${g.n}</div>
+      ${g.p?`<div class="carton-invite-phone">📞 ${g.p}</div>`:''}
+    </div>
+    <div class="carton-right">
+      <div class="carton-qr-box" id="${qrId}"></div>
+      <div class="carton-qr-lbl">Votre accès</div>
+    </div>
+    <div class="carton-bottom-strip"></div>
+  </div>`;
+}
+
+/* ═══════════════════════════ MODAL ═══════════════════════════ */
+function openCartonModal(){
+  const sel=document.getElementById('modal-select');
+  sel.innerHTML='<option value="">-- Choisir un invité --</option>'+
+    GUESTS.map((g,i)=>`<option value="${i}">${g.n}</option>`).join('');
+  document.getElementById('modal-bg').classList.add('open');
+}
+function closeModal(){ document.getElementById('modal-bg').classList.remove('open'); }
+
+function renderModalCarton(){
+  const i=parseInt(document.getElementById('modal-select').value);
+  const wrap=document.getElementById('modal-carton-wrap');
+  if(isNaN(i)){wrap.innerHTML='';return;}
+  const g=GUESTS[i];
+  wrap.innerHTML=cartonHTML(g,i,'modal-qr-box');
+  setTimeout(()=>{
+    try{new QRCode(document.getElementById('modal-qr-box'),{text:`NOM:${g.n}\nTEL:${g.p||''}\nID:${i}`,width:78,height:78,colorDark:'#1A1510',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M});}catch(e){}
+  },50);
+}
+
+/* ═══════════════════════════ PRINT ONE CARTON ═══════════════════════════ */
+function printOneCarton(){
+  const i=parseInt(document.getElementById('modal-select').value);
+  if(isNaN(i)){alert('Sélectionnez un invité');return;}
+  const g=GUESTS[i];
+  const win=window.open('','_blank','width=800,height=600');
+  const qrData=`NOM:${g.n}\nTEL:${g.p||''}\nID:${i}`;
+
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400;1,600&family=Jost:wght@300;400;500&display=swap');
+    body{margin:0;padding:20mm;background:#fff;display:flex;justify-content:center;align-items:center;min-height:100vh;}
+    .carton{width:148mm;height:100mm;background:linear-gradient(135deg,#1A1206,#2C1D08,#1A1206);border:2px solid #C9A84C;border-radius:4px;display:flex;align-items:stretch;overflow:hidden;position:relative;font-family:'Playfair Display',serif;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+    .carton::before,.carton::after{content:'';position:absolute;width:40px;height:40px;border-color:#E8D197;border-style:solid;opacity:.35;}
+    .carton::before{top:7px;left:7px;border-width:2px 0 0 2px;}
+    .carton::after{bottom:7px;right:7px;border-width:0 2px 2px 0;}
+    .left{flex:1;padding:20px 16px;display:flex;flex-direction:column;justify-content:center;border-right:1px solid rgba(201,168,76,.2);}
+    .tag{font-size:7px;letter-spacing:3px;text-transform:uppercase;color:#C9A84C;opacity:.7;margin-bottom:6px;font-family:'Jost',sans-serif;}
+    .evt{font-size:18px;font-weight:700;color:#C9A84C;line-height:1.1;margin-bottom:2px;}
+    .sub{font-size:10px;font-style:italic;color:#E8D197;opacity:.6;margin-bottom:12px;font-family:'Jost',sans-serif;}
+    .div{width:36px;height:1px;background:#C9A84C;opacity:.4;margin-bottom:12px;}
+    .lbl{font-size:7px;letter-spacing:2px;text-transform:uppercase;color:#6B5A3A;font-family:'Jost',sans-serif;margin-bottom:3px;}
+    .iname{font-size:15px;font-weight:600;color:#FAF7F0;line-height:1.2;}
+    .iphone{font-size:9px;color:#6B5A3A;margin-top:3px;font-family:'Jost',sans-serif;}
+    .right{width:110px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:12px;}
+    .qrbox{background:#fff;border-radius:3px;padding:5px;width:80px;height:80px;display:flex;align-items:center;justify-content:center;}
+    .qrbox canvas,.qrbox img{width:70px!important;height:70px!important;}
+    .qlbl{font-size:7px;letter-spacing:1.5px;text-transform:uppercase;color:#C9A84C;opacity:.6;text-align:center;font-family:'Jost',sans-serif;}
+    .strip{position:absolute;bottom:0;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent,#C9A84C,#E8D197,#C9A84C,transparent);opacity:.5;}
+    @media print{body{padding:10mm;}@page{size:A5 landscape;margin:10mm;}}
+  </style></head><body>
+  <div class="carton">
+    <div class="left">
+      <div class="tag">Cérémonie de mariage</div>
+      <div class="evt">Yves &amp; Épouse</div>
+      <div class="sub">Vous êtes cordialement invité(e)</div>
+      <div class="div"></div>
+      <div class="lbl">Nom de l'invité(e)</div>
+      <div class="iname">${g.n}</div>
+      ${g.p?`<div class="iphone">📞 ${g.p}</div>`:''}
+    </div>
+    <div class="right">
+      <div class="qrbox" id="qr"></div>
+      <div class="qlbl">Votre accès</div>
+    </div>
+    <div class="strip"></div>
+  </div>
+  <script>
+    window.onload=function(){
+      new QRCode(document.getElementById('qr'),{text:'${qrData.replace(/\n/g,'\\n')}',width:70,height:70,colorDark:'#1A1510',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M});
+      setTimeout(()=>window.print(),800);
+    };
+  <\/script></body></html>`);
+  win.document.close();
+}
+
+/* ═══════════════════════════ PRINT ALL CARTONS ═══════════════════════════ */
+function printAllCartons(){
+  const win=window.open('','_blank','width=900,height=700');
+  const rows=GUESTS.map((g,i)=>{
+    const qd=`NOM:${g.n}\\nTEL:${g.p||''}\\nID:${i}`;
+    return `<div class="citem">
+      <div class="carton">
+        <div class="left">
+          <div class="tag">Cérémonie de mariage</div>
+          <div class="evt">Yves &amp; Épouse</div>
+          <div class="sub">Vous êtes cordialement invité(e)</div>
+          <div class="div"></div>
+          <div class="lbl">Nom de l'invité(e)</div>
+          <div class="iname">${g.n}</div>
+          ${g.p?`<div class="iphone">📞 ${g.p}</div>`:''}
+        </div>
+        <div class="right">
+          <div class="qrbox" id="cqr${i}"></div>
+          <div class="qlbl">Votre accès</div>
+        </div>
+        <div class="strip"></div>
+      </div>
+    </div>`;
+  }).join('');
+
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Jost:wght@300;400;500&display=swap');
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{background:#fff;padding:8mm;font-family:'Playfair Display',serif;}
+    .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8mm;}
+    .citem{page-break-inside:avoid;}
+    .carton{width:100%;aspect-ratio:148/100;background:linear-gradient(135deg,#1A1206,#2C1D08,#1A1206);border:1.5px solid #C9A84C;border-radius:3px;display:flex;align-items:stretch;overflow:hidden;position:relative;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+    .carton::before,.carton::after{content:'';position:absolute;width:32px;height:32px;border-color:#E8D197;border-style:solid;opacity:.35;}
+    .carton::before{top:6px;left:6px;border-width:2px 0 0 2px;}
+    .carton::after{bottom:6px;right:6px;border-width:0 2px 2px 0;}
+    .left{flex:1;padding:14px 12px;display:flex;flex-direction:column;justify-content:center;border-right:1px solid rgba(201,168,76,.2);}
+    .tag{font-size:6px;letter-spacing:2.5px;text-transform:uppercase;color:#C9A84C;opacity:.7;margin-bottom:5px;font-family:'Jost',sans-serif;}
+    .evt{font-size:15px;font-weight:700;color:#C9A84C;line-height:1.1;margin-bottom:2px;}
+    .sub{font-size:9px;font-style:italic;color:#E8D197;opacity:.6;margin-bottom:10px;font-family:'Jost',sans-serif;}
+    .div{width:30px;height:1px;background:#C9A84C;opacity:.4;margin-bottom:10px;}
+    .lbl{font-size:6px;letter-spacing:2px;text-transform:uppercase;color:#6B5A3A;font-family:'Jost',sans-serif;margin-bottom:3px;}
+    .iname{font-size:12px;font-weight:600;color:#FAF7F0;}
+    .iphone{font-size:8px;color:#6B5A3A;margin-top:2px;font-family:'Jost',sans-serif;}
+    .right{width:90px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;padding:10px;}
+    .qrbox{background:#fff;border-radius:2px;padding:4px;width:68px;height:68px;display:flex;align-items:center;justify-content:center;}
+    .qrbox canvas,.qrbox img{width:60px!important;height:60px!important;}
+    .qlbl{font-size:6px;letter-spacing:1.5px;text-transform:uppercase;color:#C9A84C;opacity:.6;text-align:center;font-family:'Jost',sans-serif;}
+    .strip{position:absolute;bottom:0;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent,#C9A84C,#E8D197,#C9A84C,transparent);opacity:.5;}
+    @media print{@page{size:A4;margin:8mm;}body{padding:4mm;}}
+  </style></head><body>
+  <div class="grid">${rows}</div>
+  <script>
+    const data=${JSON.stringify(GUESTS.map((g,i)=>({n:g.n,p:g.p||'',i})))};
+    window.onload=function(){
+      data.forEach((g,idx)=>{
+        setTimeout(()=>{
+          const el=document.getElementById('cqr'+g.i);
+          if(!el)return;
+          try{new QRCode(el,{text:'NOM:'+g.n+'\\nTEL:'+g.p+'\\nID:'+g.i,width:60,height:60,colorDark:'#1A1510',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M});}catch(e){}
+        },idx*6);
+      });
+      setTimeout(()=>window.print(), data.length*6+1200);
+    };
+  <\/script></body></html>`);
+  win.document.close();
+}
+
+/* ═══════════════════════════ SCANNER ═══════════════════════════ */
+let camStream=null, scanning=false;
+async function startCam(){
+  try{
+    camStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
+    const v=document.getElementById('video-feed');
+    v.srcObject=camStream; v.style.display='block';
+    document.getElementById('scan-ph').style.display='none';
+    document.getElementById('btn-cam').classList.add('hidden');
+    document.getElementById('btn-stop').classList.remove('hidden');
+    scanning=true; scanLoop(v);
+  }catch(e){alert("Caméra indisponible. Utilisez la saisie manuelle.");}
+}
+function stopCam(){
+  if(camStream){camStream.getTracks().forEach(t=>t.stop());camStream=null;}
+  scanning=false;
+  document.getElementById('video-feed').style.display='none';
+  document.getElementById('scan-ph').style.display='block';
+  document.getElementById('btn-cam').classList.remove('hidden');
+  document.getElementById('btn-stop').classList.add('hidden');
+}
+function scanLoop(v){
+  if(!scanning)return;
+  if('BarcodeDetector' in window){
+    const det=new BarcodeDetector({formats:['qr_code']});
+    const tick=()=>{
+      if(!scanning)return;
+      if(v.readyState<2){requestAnimationFrame(tick);return;}
+      const c=document.createElement('canvas');
+      c.width=v.videoWidth;c.height=v.videoHeight;
+      c.getContext('2d').drawImage(v,0,0);
+      det.detect(c).then(codes=>{
+        if(codes.length){processQR(codes[0].rawValue);}
+        else requestAnimationFrame(tick);
+      }).catch(()=>requestAnimationFrame(tick));
+    };
+    requestAnimationFrame(tick);
+  }
+}
+function processQR(data){
+  const idM=data.match(/ID:(\d+)/), nmM=data.match(/NOM:(.+)/);
+  if(idM){const i=parseInt(idM[1]);if(i>=0&&i<GUESTS.length){showResult(i);return;}}
+  if(nmM){const i=GUESTS.findIndex(g=>g.n===nmM[1].trim());if(i!==-1){showResult(i);return;}}
+  showResultUnknown(data);
+}
+function showResult(i){
+  const g=GUESTS[i], was=ST.present.has(i);
+  if(!was){ST.present.add(i);save();updateStats();}
+  document.getElementById('res-name').textContent=g.n;
+  document.getElementById('res-phone').textContent=g.p?'📞 '+g.p:'Pas de numéro';
+  const b=document.getElementById('res-badge');
+  if(was){b.textContent='↩ Déjà enregistré';b.className='res-badge rb-already';}
+  else{b.textContent='✓ Bienvenue !';b.className='res-badge rb-found';}
+  document.getElementById('scan-result').style.display='block';
+  scanning=false;
+  setTimeout(()=>{scanning=true;const v=document.getElementById('video-feed');if(camStream)scanLoop(v);},3000);
+}
+function showResultUnknown(data){
+  document.getElementById('res-name').textContent='Inconnu';
+  document.getElementById('res-phone').textContent=data.substring(0,60);
+  const b=document.getElementById('res-badge');b.textContent='✗ Non sur la liste';b.className='res-badge rb-nf';
+  document.getElementById('scan-result').style.display='block';
+}
+function manualCheck(){
+  const q=document.getElementById('manual-in').value.trim();
+  if(!q)return;
+  const i=GUESTS.findIndex(g=>g.n.toLowerCase().includes(q.toLowerCase()));
+  if(i!==-1)showResult(i); else showResultUnknown(q);
+  document.getElementById('manual-in').value='';
+}
+
+/* ═══════════════════════════ INIT ═══════════════════════════ */
+buildChips(); renderList(); updateStats();
+</script>
+</body>
+</html>
