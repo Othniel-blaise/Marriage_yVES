@@ -211,6 +211,119 @@ main{padding:32px 36px;max-width:1440px;margin:0 auto;}
 }
 
 .hidden{display:none!important;}
+
+/* ════════════════════════════════
+   RESPONSIVE — TABLET (≤ 900px)
+════════════════════════════════ */
+@media (max-width: 900px) {
+  header{padding:14px 20px;}
+  .logo{font-size:20px;}
+  .tab{padding:7px 12px;font-size:10px;letter-spacing:1px;}
+  main{padding:20px 16px;}
+  .stats{grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:20px;}
+  .stat-val{font-size:32px;}
+  .guest-grid{grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;}
+  .qr-grid{grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;}
+  .toolbar{gap:7px;}
+  .btn{padding:9px 14px;font-size:9px;letter-spacing:1.5px;}
+  .modal-box{padding:20px;}
+}
+
+/* ════════════════════════════════
+   RESPONSIVE — MOBILE (≤ 600px)
+════════════════════════════════ */
+@media (max-width: 600px) {
+  /* Header — logo + nav empilés */
+  header{
+    flex-direction:column;
+    align-items:flex-start;
+    gap:12px;
+    padding:14px 16px;
+    position:sticky;top:0;
+  }
+  .logo{font-size:18px;}
+  nav{width:100%;display:grid;grid-template-columns:repeat(3,1fr);gap:5px;}
+  .tab{padding:9px 6px;font-size:9px;letter-spacing:1px;text-align:center;}
+
+  main{padding:16px 12px;}
+
+  /* Stats — 2 colonnes sur mobile */
+  .stats{grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:16px;}
+  .stat{padding:14px 14px;}
+  .stat-lbl{font-size:8px;letter-spacing:2px;}
+  .stat-val{font-size:28px;}
+  .stat-sub{font-size:10px;}
+
+  /* Toolbar — colonne sur mobile */
+  .toolbar{flex-direction:column;align-items:stretch;gap:8px;}
+  .search-wrap{min-width:unset;width:100%;}
+  .toolbar .btn{width:100%;text-align:center;padding:12px;}
+
+  /* Chips scroll horizontal */
+  .chips{flex-wrap:nowrap;overflow-x:auto;padding-bottom:6px;-webkit-overflow-scrolling:touch;}
+  .chips::-webkit-scrollbar{height:3px;}
+  .chips::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+  .chip{flex-shrink:0;}
+
+  /* Sec header */
+  .sec-hdr{margin-bottom:12px;}
+  .sec-ttl{font-size:17px;}
+  .sec-line{display:none;}
+
+  /* Guest grid — 1 colonne */
+  .guest-grid{grid-template-columns:1fr;gap:9px;}
+  .gcard{padding:14px;}
+  .g-name{font-size:14px;}
+
+  /* QR grid — 2 colonnes */
+  .qr-grid{grid-template-columns:repeat(2,1fr);gap:9px;}
+  .qr-card{padding:10px;}
+  .qr-box{width:92px;height:92px;}
+  .qr-box canvas,.qr-box img{width:78px!important;height:78px!important;}
+  .qr-name{font-size:11px;}
+
+  /* Toolbar QR page — colonne */
+  #page-qrcodes .toolbar{flex-direction:column;align-items:stretch;}
+  #page-qrcodes .toolbar .btn{width:100%;}
+  #page-qrcodes .toolbar span{display:none;}
+
+  /* Scanner */
+  .scan-wrap{max-width:100%;}
+  .scan-box{padding:20px 14px;}
+  .scan-hint{font-size:14px;margin-bottom:12px;}
+  #scan-ph{font-size:12px;padding:14px;}
+  .res-name{font-size:22px;}
+  .scan-result{padding:20px 16px;}
+  .manual-row{flex-direction:column;gap:8px;}
+  .manual-row input{width:100%;}
+  .manual-row .btn{width:100%;padding:12px;}
+
+  /* Modal */
+  .modal-box{width:95%;padding:16px;max-height:90vh;overflow-y:auto;}
+  .modal-actions{flex-direction:column;}
+  .modal-actions .btn{width:100%;text-align:center;}
+
+  /* Carton preview dans modal — adapté mobile */
+  .carton-preview{aspect-ratio:unset;flex-direction:column;}
+  .carton-left{border-right:none;border-bottom:1px solid rgba(201,168,76,.2);padding:16px;}
+  .carton-right{width:100%;flex-direction:row;justify-content:center;padding:12px;gap:14px;}
+  .carton-event{font-size:17px;}
+  .carton-invite-name{font-size:14px;}
+
+  /* Boutons scan */
+  #btn-cam,#btn-stop{width:100%;margin:4px 0!important;}
+}
+
+/* ════════════════════════════════
+   RESPONSIVE — TRÈS PETIT (≤ 360px)
+════════════════════════════════ */
+@media (max-width: 360px) {
+  .stats{grid-template-columns:1fr;gap:7px;}
+  .stat-val{font-size:36px;}
+  .qr-grid{grid-template-columns:1fr;}
+  nav{grid-template-columns:1fr;}
+  .tab{text-align:center;}
+}
 </style>
 </head>
 <body>
